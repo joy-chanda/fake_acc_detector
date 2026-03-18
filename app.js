@@ -16,26 +16,41 @@
 const MODEL = {
   priors: { fake: 0.503, real: 0.497 },
 
-  // Continuous features: [mean, variance]  per class {fake, real}
+  // Continuous features: [mean, variance] per class {fake, real}
+  // Variances kept wide enough to avoid numerical underflow.
+  // edge_followed_by / edge_follow / full_name_length are ONLY used
+  // when the user has opened Advanced Options (advancedOpen flag).
   continuous: {
-    edge_followed_by:  { fake: [0.0015, 0.000009], real: [0.342,  0.068] },
-    edge_follow:       { fake: [0.478,  0.072],     real: [0.218,  0.031] },
-    username_length:   { fake: [11.6,   11.8],      real: [8.2,    6.4]  },
-    full_name_length:  { fake: [4.8,    34.0],      real: [11.2,   15.5] },
+    // Always-used (derived from username string)
+    username_length:   { fake: [11.8, 15.0], real: [7.8,  9.0] },
+    // Advanced-only (require user-supplied values)
+    edge_followed_by:  { fake: [0.004, 0.0016], real: [0.28, 0.055] },
+    edge_follow:       { fake: [0.47,  0.070],  real: [0.21, 0.035] },
+    full_name_length:  { fake: [4.5,   40.0],   real: [10.8, 18.0]  },
   },
 
-  // Binary features: P(feature=1 | class)  {fake, real}
+  // Binary features: P(feature=1 | class) {fake, real}
   binary: {
-    username_has_number:   { fake: 0.74, real: 0.32 },
-    full_name_has_number:  { fake: 0.21, real: 0.08 },
-    is_private:            { fake: 0.24, real: 0.41 },
-    is_joined_recently:    { fake: 0.35, real: 0.09 },
-    has_channel:           { fake: 0.02, real: 0.07 },
-    is_business_account:   { fake: 0.05, real: 0.20 },
-    has_guides:            { fake: 0.01, real: 0.07 },
-    has_external_url:      { fake: 0.05, real: 0.24 },
+    username_has_number:   { fake: 0.75, real: 0.30 },
+    // The following are advanced-only (all default to 0 when panel closed)
+    full_name_has_number:  { fake: 0.20, real: 0.08 },
+    is_private:            { fake: 0.24, real: 0.42 },
+    is_joined_recently:    { fake: 0.36, real: 0.08 },
+    has_channel:           { fake: 0.02, real: 0.08 },
+    is_business_account:   { fake: 0.05, real: 0.22 },
+    has_guides:            { fake: 0.01, real: 0.08 },
+    has_external_url:      { fake: 0.05, real: 0.26 },
   },
 };
+
+// Features that should only be scored when Advanced Options are open.
+// These have zero discriminatory power at their default values.
+const ADVANCED_CONTINUOUS = new Set(['edge_followed_by','edge_follow','full_name_length']);
+const ADVANCED_BINARY     = new Set(['full_name_has_number','is_private','is_joined_recently',
+                                      'has_channel','is_business_account','has_guides','has_external_url']);
+
+// Tracks whether the user has opened the Advanced panel this session
+let advancedOpen = false;
 
 // Human-readable feature labels
 const FEATURE_LABELS = {
@@ -75,18 +90,22 @@ function extractUsername(raw) {
 
 function buildFeatures(username, opts = {}) {
   return {
-    edge_followed_by:    parseFloat(opts.edge_followed_by    ?? 0.10),
-    edge_follow:         parseFloat(opts.edge_follow         ?? 0.40),
+    // Always derived from the username string itself
     username_length:     username.length,
-    full_name_length:    parseInt(opts.full_name_length      ?? 8),
     username_has_number: /\d/.test(username) ? 1 : 0,
-    full_name_has_number:opts.full_name_has_number ? 1 : 0,
-    is_private:          opts.is_private          ? 1 : 0,
-    is_joined_recently:  opts.is_joined_recently  ? 1 : 0,
-    has_channel:         opts.has_channel         ? 1 : 0,
-    is_business_account: opts.is_business_account ? 1 : 0,
-    has_guides:          opts.has_guides           ? 1 : 0,
-    has_external_url:    opts.has_external_url     ? 1 : 0,
+    // Advanced-only — only populated when advancedOpen is true
+    ...(advancedOpen ? {
+      edge_followed_by:    parseFloat(opts.edge_followed_by),
+      edge_follow:         parseFloat(opts.edge_follow),
+      full_name_length:    parseInt(opts.full_name_length),
+      full_name_has_number:opts.full_name_has_number ? 1 : 0,
+      is_private:          opts.is_private          ? 1 : 0,
+      is_joined_recently:  opts.is_joined_recently  ? 1 : 0,
+      has_channel:         opts.has_channel         ? 1 : 0,
+      is_business_account: opts.is_business_account ? 1 : 0,
+      has_guides:          opts.has_guides           ? 1 : 0,
+      has_external_url:    opts.has_external_url     ? 1 : 0,
+    } : {}),
   };
 }
 
@@ -95,45 +114,41 @@ function buildFeatures(username, opts = {}) {
 // Returns { label, probability, featureContributions }
 // ─────────────────────────────────────────────
 function predict(features) {
-  // Log posteriors
   let logFake = Math.log(MODEL.priors.fake);
   let logReal = Math.log(MODEL.priors.real);
-
   const contributions = {};
+  const eps = 1e-300;
 
-  // Continuous features
+  // Continuous features — skip advanced ones if not provided
   for (const [feat, params] of Object.entries(MODEL.continuous)) {
+    if (!(feat in features)) continue; // skip if not provided (advanced panel closed)
     const x = features[feat];
     const pFake = gaussianPDF(x, params.fake[0], params.fake[1]);
     const pReal = gaussianPDF(x, params.real[0], params.real[1]);
-    const eps = 1e-300;
     logFake += Math.log(pFake + eps);
     logReal += Math.log(pReal + eps);
-    // Contribution: positive = pushes toward fake, negative = toward real
     contributions[feat] = Math.log(pFake + eps) - Math.log(pReal + eps);
   }
 
-  // Binary features
+  // Binary features — skip advanced ones if not provided
   for (const [feat, params] of Object.entries(MODEL.binary)) {
+    if (!(feat in features)) continue;
     const x = features[feat];
     const pFake = x === 1 ? params.fake : (1 - params.fake);
     const pReal = x === 1 ? params.real : (1 - params.real);
-    const eps = 1e-9;
     logFake += Math.log(pFake + eps);
     logReal += Math.log(pReal + eps);
     contributions[feat] = Math.log(pFake + eps) - Math.log(pReal + eps);
   }
 
-  // Softmax to get probability
   const maxLog = Math.max(logFake, logReal);
   const expFake = Math.exp(logFake - maxLog);
   const expReal = Math.exp(logReal - maxLog);
-  const totalExp = expFake + expReal;
-  const probFake = expFake / totalExp;
+  const probFake = expFake / (expFake + expReal);
 
   return {
     label: probFake >= 0.5 ? 'fake' : 'real',
-    probability: probFake,          // P(fake)
+    probability: probFake,
     contributions,
   };
 }
@@ -335,12 +350,13 @@ document.getElementById('usernameInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') runAnalysis();
 });
 
-// Advanced toggle
+// Advanced toggle — track open state for feature gating
 const advToggle = document.getElementById('advToggle');
 const advPanel  = document.getElementById('advPanel');
 advToggle.addEventListener('click', () => {
   const open = advPanel.classList.toggle('open');
   advToggle.classList.toggle('open', open);
+  advancedOpen = open; // update gate flag
 });
 
 // Range sliders live update
