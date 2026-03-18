@@ -38,81 +38,31 @@
         <button id="analyzeBtn">Analyse →</button>
       </div>
 
-      <!-- Advanced options toggle -->
-      <div class="advanced-toggle" id="advToggle">
-        <span>Advanced Options</span>
-        <span class="toggle-arrow">▾</span>
-      </div>
-
-      <div class="advanced-panel" id="advPanel">
-        <div class="adv-grid">
-          <!-- Follower ratio -->
-          <div class="adv-item">
-            <label>Follower Ratio <small>(edge_followed_by)</small></label>
-            <div class="range-wrap">
-              <input type="range" id="rFollowers" min="0" max="1" step="0.001" value="0.1"/>
-              <span class="range-val" id="rFollowersVal">0.10</span>
-            </div>
-          </div>
-          <!-- Following ratio -->
-          <div class="adv-item">
-            <label>Following Ratio <small>(edge_follow)</small></label>
-            <div class="range-wrap">
-              <input type="range" id="rFollowing" min="0" max="1" step="0.001" value="0.4"/>
-              <span class="range-val" id="rFollowingVal">0.40</span>
-            </div>
-          </div>
-          <!-- Full name length -->
-          <div class="adv-item">
-            <label>Full Name Length (chars)</label>
-            <div class="range-wrap">
-              <input type="range" id="rFNLen" min="0" max="40" step="1" value="8"/>
-              <span class="range-val" id="rFNLenVal">8</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="checkboxes-grid">
-          <label class="checkbox-item">
-            <input type="checkbox" id="chkFNNum"/>
-            <span class="cb-box"></span> Full name has number
-          </label>
-          <label class="checkbox-item">
-            <input type="checkbox" id="chkPrivate"/>
-            <span class="cb-box"></span> Private account
-          </label>
-          <label class="checkbox-item">
-            <input type="checkbox" id="chkNewJoin"/>
-            <span class="cb-box"></span> Joined recently
-          </label>
-          <label class="checkbox-item">
-            <input type="checkbox" id="chkChannel"/>
-            <span class="cb-box"></span> Has channel
-          </label>
-          <label class="checkbox-item">
-            <input type="checkbox" id="chkBusiness"/>
-            <span class="cb-box"></span> Business account
-          </label>
-          <label class="checkbox-item">
-            <input type="checkbox" id="chkGuides"/>
-            <span class="cb-box"></span> Has guides
-          </label>
-          <label class="checkbox-item">
-            <input type="checkbox" id="chkExtURL"/>
-            <span class="cb-box"></span> Has external URL
-          </label>
-        </div>
-      </div>
-
+      <!-- Removed manual advanced options since the backend fetches all features automatically -->
       <div class="notice">
         <span class="notice-icon">⚡</span>
-        <span>The model extracts <strong>username length</strong> and <strong>number presence</strong> automatically. For higher accuracy, fill in the advanced options — these reflect real Instagram profile fields.</span>
+        <span>The model now connects to our <strong>live backend scanner</strong>. It will fetch the real profile stats directly from Instagram and run the classifier automatically.</span>
       </div>
     </div>
 
     <!-- Result Card -->
     <div class="card" id="resultCard">
-      <div class="card-title">📊 Analysis Result</div>
+      
+      <!-- Live Scraped Profile Info -->
+      <div class="profile-header" id="profileHeader">
+        <img src="" alt="Avatar" class="prof-avatar" id="profAvatar" />
+        <div class="prof-info">
+          <div class="prof-name" id="profName">Full Name</div>
+          <div class="prof-stats">
+            <span id="profFollowers">0</span> Followers • 
+            <span id="profFollowing">0</span> Following • 
+            <span id="profPosts">0</span> Posts
+          </div>
+          <div class="prof-bio" id="profBio">Bio...</div>
+        </div>
+      </div>
+
+      <div class="card-title" style="margin-top: 24px;">📊 AI Analysis Result</div>
 
       <div class="verdict-row">
         <!-- Confidence ring -->
