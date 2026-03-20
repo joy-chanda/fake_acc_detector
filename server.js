@@ -79,6 +79,17 @@ app.get('/api/scrape/:username', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+// Basic health check endpoint for keep-alive
+app.get('/health', (req, res) => res.status(200).send('OK'));
+
 app.listen(PORT, () => {
   console.log(`Fake IG Detector API running on http://localhost:${PORT}`);
+  
+  // Render injects RENDER_EXTERNAL_URL into web services automatically.
+  // This self-pings the server every 10 minutes to prevent the free tier from sleeping.
+  const EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  setInterval(() => {
+    axios.get(`${EXTERNAL_URL}/health`).catch(() => {});
+  }, 10 * 60 * 1000);
 });
