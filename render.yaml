@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: instacheck-ai-detector
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: IG_SESSIONID
+        sync: false
