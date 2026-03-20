@@ -79,7 +79,17 @@ function predict(features) {
   const expReal = Math.exp(logReal - maxLog);
   const probFake = expFake / (expFake + expReal);
 
-  return { label: probFake >= 0.5 ? 'fake' : 'real', probability: probFake, contributions };
+  let finalLabel = probFake >= 0.5 ? 'fake' : 'real';
+  let finalProb = probFake;
+
+  // User rule: if follower ratio is below 0.5, then account is fake
+  if (features.edge_followed_by !== undefined && features.edge_followed_by < 0.5) {
+    finalLabel = 'fake';
+    finalProb = Math.max(finalProb, 0.99);
+    contributions.edge_followed_by = 5.0; // High fake contribution
+  }
+
+  return { label: finalLabel, probability: finalProb, contributions };
 }
 
 // ─────────────────────────────────────────────
