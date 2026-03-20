@@ -82,8 +82,8 @@ function predict(features) {
   let finalLabel = probFake >= 0.5 ? 'fake' : 'real';
   let finalProb = probFake;
 
-  // User rule: if follower ratio is below 0.5, then account is fake
-  if (features.edge_followed_by !== undefined && features.edge_followed_by < 0.5) {
+  // User rule: if follower ratio is below 0.2, then account is fake
+  if (features.edge_followed_by !== undefined && features.edge_followed_by < 0.2) {
     finalLabel = 'fake';
     finalProb = Math.max(finalProb, 0.99);
     contributions.edge_followed_by = 5.0; // High fake contribution
