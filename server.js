@@ -1,9 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+require('dotenv').config();
 
 const app = express();
 app.use(cors());
+app.use(express.static(__dirname));
 
 // Internal endpoint that works without login if you spoof headers right
 const INSTA_URL = 'https://i.instagram.com/api/v1/users/web_profile_info/?username=';
@@ -19,6 +21,7 @@ app.get('/api/scrape/:username', async (req, res) => {
         'X-IG-App-ID': '936619743392459', // Required public app ID
         'Accept': '*/*',
         'Accept-Language': 'en-US,en;q=0.9',
+        ...(process.env.IG_SESSIONID ? { 'Cookie': `sessionid=${process.env.IG_SESSIONID}` } : {})
       },
       timeout: 8000
     });
